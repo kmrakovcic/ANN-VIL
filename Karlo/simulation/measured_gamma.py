@@ -8,7 +8,6 @@ import datetime
 from scipy.stats.sampling import NumericalInversePolynomial
 from scipy import constants
 from scipy import integrate
-from matplotlib import pyplot as plt
 from scipy.integrate import quad
 from scipy.optimize import curve_fit
 
