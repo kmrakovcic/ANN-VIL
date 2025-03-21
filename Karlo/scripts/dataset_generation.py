@@ -2,6 +2,7 @@ import sys
 sys.path.append('../')
 from simulation import dataset_creation
 import argparse
+import numpy as np
 
 def main():
     parser = argparse.ArgumentParser(description="Generate opacity grid")
