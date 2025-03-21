@@ -70,7 +70,7 @@ def main():
     parser.add_argument('--verbose', type=argparse.BooleanOptionalAction,
                         default=True,
                         help='Print verbose.')
-    parser.add_argument('--output_suffix', type=str(),
+    parser.add_argument('--output_suffix', type=str,
                         default="",
                         help='Add to the end of the output name.')
     args = parser.parse_args()
