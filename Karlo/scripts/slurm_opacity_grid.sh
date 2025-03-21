@@ -2,7 +2,8 @@
 #SBATCH --job-name=opacity_grid
 #SBATCH --output=/home/kmrakovcic/Results/LIV/opacity_grid.txt
 #SBATCH --partition=computes_thin
-#SBATCH --nodes=1
+#SBATCH --cpus-per-task=24
+#SBATCH --mem-per-cpu=1G
 #SBATCH --ntasks=1
 #SBATCH --time=336:00:00
 hostname
