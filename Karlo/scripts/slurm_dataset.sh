@@ -3,7 +3,7 @@
 #SBATCH --output=/home/kmrakovcic/Results/LIV/dataset_generation.txt
 #SBATCH --partition=computes_thin
 #SBATCH --cpus-per-task=24
-#SBATCH --mem-per-cpu=1G
+#SBATCH --mem=1G
 #SBATCH --ntasks=1
 #SBATCH --time=336:00:00
 hostname

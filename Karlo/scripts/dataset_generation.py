@@ -75,8 +75,8 @@ def main():
                         help='Add to the end of the output name.')
     args = parser.parse_args()
 
-    x, y = create_train_set(args.examples_num,
-                            [(10 ** args.E0_min, alpha_min), (10 ** args.E0_max, alpha_max)],
+    x, y = dataset_creation.create_train_set(args.examples_num,
+                            [(10 ** args.E0_min, args.alpha_min), (10 ** args.E0_max, args.alpha_max)],
                             [(args.A1_min, args.mean1_min, args.sigma1_min, args.A2_min, args.mean2_min, args.sigma2_min),
                              (args.A1_max, args.mean1_max, args.sigma1_max, args.A2_max, args.mean2_max, args.sigma2_max)],
                             interpolation_grid_file=args.opacity_file,
