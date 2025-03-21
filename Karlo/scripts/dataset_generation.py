@@ -84,7 +84,7 @@ def main():
                             parallel=True,
                             photon_num=args.photon_num,
                             verbose=args.verbose)
-    np.savez("./extra/trainset_p"+str(args.photon_num)+"n"+str(args.photon_num)+"_"+args.output_suffix+".npz", x=x, y=y)
+    np.savez("../extra/trainset_p"+str(args.photon_num)+"n"+str(args.photon_num)+"_"+args.output_suffix+".npz", x=x, y=y)
 
 if __name__ == '__main__':
     main()
