@@ -7,6 +7,6 @@
 #SBATCH --ntasks=1
 #SBATCH --time=336:00:00
 hostname
-srun python3 /home/kmrakovcic/Projects/ANN-VIL/scripts/opacity_grid_generation.py \
+srun python3 /home/kmrakovcic/Projects/ANN-VIL/Karlo/scripts/opacity_grid_generation.py \
 --E_num 1000 \
 --Eqg_num 1000
