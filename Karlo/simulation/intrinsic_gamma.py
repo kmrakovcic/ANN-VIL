@@ -14,7 +14,7 @@ class intrinsicLC:
 
     def support(self):
         # distribution restricted to 0, 5, can be changed as needed
-        return (0, 3600)#7200)
+        return (0, 7200)
 
     def pdf(self, x):
         # this is not a proper pdf, the normalizing

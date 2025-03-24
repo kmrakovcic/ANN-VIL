@@ -67,9 +67,10 @@ def create_opacity_grid(E_min, E_max, Eqg_min, Eqg_max, N=(5, 5), z=0.035, paral
 
 def create_one_training_example(spectrum_parameters, lc_parameters, Eqg,
                                 spectrum_error=None, lc_error=None, E_min=10 ** 10.55, E_max=10 ** 13.7,
-                                z=0.035, photon_num=2000, interpolation_grid=None, verbose=False, i=0):
+                                z=0.035, photon_num=2000, interpolation_grid=None, t_observation=4*28*60, verbose=False, i=0):
     photon_count = 0
     intrinsic_time = None
+    kappa2 = measured_gamma.distanceContrib(z)
     if interpolation_grid is not None:
         opacity_interpolator = RegularGridInterpolator((interpolation_grid[0],
                                                         interpolation_grid[1]),
@@ -112,27 +113,36 @@ def create_one_training_example(spectrum_parameters, lc_parameters, Eqg,
                 opacity = opacity_interpolator((intrinsic_energy[-1], Eqg))
             survival_prob = np.concat([survival_prob, [np.exp(-opacity)]])
             survived_mask = np.concat([survived_mask, [False]])
-        if np.random.random() < survival_prob[-1]:
-            survived_mask[-1] = True
-            photon_count += 1
+        if t_observation > 0:
+            if (np.random.random() < survival_prob[-1]) and (intrinsic_time[-1] + measured_gamma.timeDelay(intrinsic_energy[-1], Eqg,
+                                                                             kappa2) - measured_gamma.timeDelay(E_min, Eqg,
+                                                                             kappa2) < t_observation):
+                survived_mask[-1] = True
+                photon_count += 1
+        else:
+            if np.random.random() < survival_prob[-1]:
+                survived_mask[-1] = True
+                photon_count += 1
         if verbose:
-            print("\r", photon_count, "/", photon_num, "measured, ETA:",
-                  round((time.time() - start_time) * (photon_num - photon_count) / photon_count, 1), "s", end="   ")
+            if photon_count != 0:
+                print("\r", photon_count, "/", photon_num, "measured, ETA:",
+                    round((time.time() - start_time) * (photon_num - photon_count) / photon_count, 1), "s", end="   ")
 
     assert survived_mask.sum() == photon_num
-    kappa2 = measured_gamma.distanceContrib(z)
     measured_time = intrinsic_time[survived_mask] + measured_gamma.timeDelay(intrinsic_energy[survived_mask], Eqg,
                                                                              kappa2)
     measured_energy = measured_gamma.detectionEnergy(intrinsic_energy[survived_mask], z)
-    measured_photons = np.vstack([measured_time, measured_energy]).T
-    intrinsic_photons = np.vstack([intrinsic_time, intrinsic_energy, survival_prob]).T
+    sort_index=np.argsort(measured_time)
+    measured_photons = np.vstack([measured_time-measured_time.min(), measured_energy]).T[sort_index]
+    intrinsic_photons = np.vstack([intrinsic_time, intrinsic_energy, survival_prob]).T[sort_index]
     return measured_photons, intrinsic_photons, i
 
 
-def create_train_set(examples_num, spectrum_parameters, lc_parameters, Eqg=[10 ** 9, 10 ** 30],
+def create_train_set(examples_num, spectrum_parameters, lc_parameters, Eqg=[10 ** 16, 10 ** 26],
                      spectrum_error=(0., 0.24), lc_error=(6., 185., 301., 11., 220., 283.),
                      E=[10 ** 10.55, 10 ** 13.7],
-                     z=0.035, photon_num=2000, interpolation_grid_file=None, verbose=False,
+                     z=0.035, photon_num=2000, t_observation=4*28*60,
+                     interpolation_grid_file=None, verbose=False,
                      parallel=True):
     if interpolation_grid_file is not None:
         opacity_grid, E_grid, Eqg_grid = np.load(interpolation_grid_file).values()
@@ -154,7 +164,7 @@ def create_train_set(examples_num, spectrum_parameters, lc_parameters, Eqg=[10 *
                                   spectrum_error=spectrum_error,
                                   interpolation_grid=interpolation_grid,
                                   z=z, E_min=E[0], E_max=E[1],
-                                  verbose=False)
+                                  verbose=False, t_observation=t_observation)
     if parallel:
         with concurrent.futures.ProcessPoolExecutor(max_workers=cpu_count) as executor:
             futures = {executor.submit(one_example_partial, sp_par[i], lc_par[i], Eqg_par[i], i=i): i for i in
