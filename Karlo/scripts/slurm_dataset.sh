@@ -9,5 +9,5 @@
 hostname
 srun python3 /home/kmrakovcic/Projects/ANN-VIL/Karlo/scripts/dataset_generation.py \
 --examples_num 1000 \
---opacity_file "/home/kmrakovcic/Projects/ANN-VIL/Karlo/extra/Opacity_grid_100x100.npz" \
+--opacity_file "/home/kmrakovcic/Projects/ANN-VIL/Karlo/extra/Opacity_grid_1000x1000.npz" \
 --output_suffix "0"
