@@ -21,6 +21,9 @@ def distanceContrib(zs=0.034, n=2):
     dist = lambda z: np.power(1 + z, n) / np.sqrt(Om_L + Om_m * np.power(1 + z, 3))
     return integrate.quad(dist, 0, zs)[0]
 
+def max_energy(L, t, E_min, kappa2):
+    return np.sqrt((2*L**2*t*H0)/(3*kappa2) + E_min**2)
+
 
 def timeDelay(E, L, kappa2):
     if L == 0:

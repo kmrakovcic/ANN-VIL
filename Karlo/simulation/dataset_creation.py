@@ -71,6 +71,8 @@ def create_one_training_example(spectrum_parameters, lc_parameters, Eqg,
     photon_count = 0
     intrinsic_time = None
     kappa2 = measured_gamma.distanceContrib(z)
+    E_max = min([E_max, measured_gamma.max_energy(Eqg, t_observation, E_min, kappa2)])
+    print (E_max, measured_gamma.max_energy(Eqg, t_observation, E_min, kappa2))
     if interpolation_grid is not None:
         opacity_interpolator = RegularGridInterpolator((interpolation_grid[0],
                                                         interpolation_grid[1]),
