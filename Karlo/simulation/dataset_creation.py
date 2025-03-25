@@ -200,15 +200,19 @@ def create_train_set(examples_num, spectrum_parameters, lc_parameters, Eqg=[10 *
                 if verbose:
                     print(f"\rTimeout occurred after {completed} examples, continuing sequential...")
                 executor.shutdown(wait=False, cancel_futures=True)
-                for c, i in enumerate(np.unique(np.argwhere(np.isnan(X_train))[:, 0])):
-                    sp_par_tmp = np.random.uniform(spectrum_parameters[0], spectrum_parameters[1])
-                    lc_par_tmp = np.random.uniform(lc_parameters[0], lc_parameters[1])
-                    Eqg_par_tmp = np.random.uniform(Eqg[0], Eqg[1])
-                    X_train[i, :], _, _ = one_example_partial(sp_par_tmp, lc_par_tmp, Eqg_par_tmp)
-                    if verbose:
-                        print(f"\rExamples {completed + c + 1} / {examples_num} generated", end="")
+                #for c, i in enumerate(np.unique(np.argwhere(np.isnan(X_train))[:, 0])):
+                #    sp_par_tmp = np.random.uniform(spectrum_parameters[0], spectrum_parameters[1])
+                #    lc_par_tmp = np.random.uniform(lc_parameters[0], lc_parameters[1])
+                #    Eqg_par_tmp = np.random.uniform(Eqg[0], Eqg[1])
+                #    X_train[i, :], _, _ = one_example_partial(sp_par_tmp, lc_par_tmp, Eqg_par_tmp)
+                #    if verbose:
+                #        print(f"\rExamples {completed + c + 1} / {examples_num} generated", end="")
             except Exception as e:
                 print(e)
+                executor.shutdown(wait=False, cancel_futures=True)
+            good_index = np.unique(np.argwhere(~np.isnan(X_train))[:, 0])
+            X_train = X_train[good_index]
+            Y_train = Y_train[good_index]
     else:
         for i in range(examples_num):
             X_train[i, :], _, _ = one_example_partial(sp_par[i], lc_par[i], Eqg_par[i])
