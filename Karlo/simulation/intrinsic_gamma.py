@@ -33,12 +33,12 @@ def powerLaw(a, b, x0, alpha, size=1):
 
 
 def intrinsic_times(A1, mean1, sigma1, A2, mean2, sigma2, size=10 ** 6):
-    sigma1 = max(200, sigma1)
-    sigma2 = max(200, sigma2)
     if mean2 < mean1:
         A_tmp, sigma_tmp, mean_tmp = A1, sigma1, mean1
         A1, sigma1, mean1 = A2, sigma2, mean2
         A2, sigma2, mean2 = A_tmp, sigma_tmp, mean_tmp
+    sigma1 = max(330, sigma1)
+    sigma2 = max(330, sigma2)
     distLC = intrinsicLC([A1, mean1, sigma1, A2, mean2, sigma2])
     genLC = NumericalInversePolynomial(distLC)
     const_pdf = quad(distLC.pdf, *distLC.support())[0]
