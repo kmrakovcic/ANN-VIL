@@ -215,7 +215,6 @@ def create_train_set(examples_num, spectrum_parameters, lc_parameters, Eqg=[10 *
                     sp_par_tmp = np.random.uniform(spectrum_parameters[0], spectrum_parameters[1])
                     lc_par_tmp = np.random.uniform(lc_parameters[0], lc_parameters[1])
                     Eqg_par_tmp = np.random.uniform(Eqg[0], Eqg[1])
-                    print(lc_par_tmp)
                     X_train[i, :], _, _ = one_example_partial(sp_par_tmp, lc_par_tmp, Eqg_par_tmp)
                     if verbose:
                         print(f"\rExamples {completed + c + 1} / {examples_num} generated", end="")
