@@ -37,10 +37,11 @@ def intrinsic_times(A1, mean1, sigma1, A2, mean2, sigma2, size=10 ** 6):
         A_tmp, sigma_tmp, mean_tmp = A1, sigma1, mean1
         A1, sigma1, mean1 = A2, sigma2, mean2
         A2, sigma2, mean2 = A_tmp, sigma_tmp, mean_tmp
-    sigma1 = max(330, sigma1)
-    sigma2 = max(330, sigma2)
+    sigma1 = max(350, sigma1)
+    sigma2 = max(350, sigma2)
+    c = [mean1, mean2][np.argmax(np.array([A1, A2]))]
     distLC = intrinsicLC([A1, mean1, sigma1, A2, mean2, sigma2])
-    genLC = NumericalInversePolynomial(distLC)
+    genLC = NumericalInversePolynomial(distLC, center=c, u_resolution=1e-6)
     const_pdf = quad(distLC.pdf, *distLC.support())[0]
     return genLC.rvs(size=size)
 

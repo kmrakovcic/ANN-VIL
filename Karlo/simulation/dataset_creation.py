@@ -167,7 +167,7 @@ def create_train_set(examples_num, spectrum_parameters, lc_parameters, Eqg=[10 *
     lc_par = np.random.uniform(np.repeat(np.array(lc_parameters[0])[:, np.newaxis], examples_num, 1).T,
                                np.repeat(np.array(lc_parameters[1])[:, np.newaxis], examples_num, 1).T)
     Eqg_par = np.power(10, np.random.uniform(math.log10(Eqg[0]), math.log10(Eqg[1]), examples_num))
-    timeout_per_node = 0.03 * photon_num
+    timeout_per_node = 0.05 * photon_num
     cpu_count = min(max(1, os.cpu_count() - 1), examples_num)
     X_train = np.zeros((examples_num, photon_num, 2)) * np.nan
     Y_train = np.concatenate([sp_par, lc_par, Eqg_par[:, np.newaxis]], axis=-1)
@@ -211,6 +211,7 @@ def create_train_set(examples_num, spectrum_parameters, lc_parameters, Eqg=[10 *
                 executor.shutdown(wait=False, cancel_futures=True)
                 if verbose:
                     print(f"\rTimeout occurred after {completed} examples, continuing sequential...")
+                    print (Y_train[np.unique(np.argwhere(np.isnan(X_train))[:, 0]), :])
                 for c, i in enumerate(np.unique(np.argwhere(np.isnan(X_train))[:, 0])):
                     sp_par_tmp = np.random.uniform(spectrum_parameters[0], spectrum_parameters[1])
                     lc_par_tmp = np.random.uniform(lc_parameters[0], lc_parameters[1])
