@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from scipy.stats import gaussian_kde
 import scipy.stats
@@ -185,20 +186,24 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load("../../Karlo/extra/transformer55.pt"))
     prediction = model.predict(x_test)
 
+    os.makedirs("../../Karlo/extra/results", exist_ok=True)
     fig, ax = plt.subplots()
     plot_correlation(y_test, prediction[:, 0], ax, name="$E^{qg}$")
     fig.tight_layout()
+    fig.savefig("../../Karlo/extra/results/correlation.png")
     plt.show()
 
     fig, ax = plt.subplots()
     ax = plot_expected_gauss(prediction[:, 0], prediction[:, 1], y_test, "E^{qg}", ax,
                              mask=None, nbins=100, true_name="true")
     fig.tight_layout()
+    fig.savefig("../../Karlo/extra/results/chi2_hist.png")
     plt.show()
 
     fig, ax = plt.subplots()
     residual_histogram(y_test, prediction[:, 0], ax)
     fig.tight_layout()
+    fig.savefig("../../Karlo/extra/results/residual_hist.png")
     plt.show()
 
     fig, ax = plt.subplots()
@@ -206,12 +211,14 @@ if __name__ == "__main__":
                      yname="$E^{qg}_{true} - E^{qg}_{NN}$")
     ax = plot_medians_on_2d_map(y_test, y_test - prediction[:, 0], ax, error_type="line")
     fig.tight_layout()
+    fig.savefig("../../Karlo/extra/results/residual_energy_dependence.png")
     plt.show()
 
     fig, ax = plt.subplots()
     ax = plot_2d_map(y_test, prediction[:, 1], ax, xname="$E^{qg}_{true}$", yname="$predicted \quad \sigma_{E^{qg}}$")
     ax = plot_medians_on_2d_map(y_test, prediction[:, 1], ax, error_type="line", zero_line=False)
     fig.tight_layout()
+    fig.savefig("../../Karlo/extra/results/sigma_energy_dependence.png")
     plt.show()
 
     fig, ax = plt.subplots()
@@ -219,9 +226,11 @@ if __name__ == "__main__":
                      yname="$E^{qg}_{true} - E^{qg}_{NN}$")
     ax = plot_medians_on_2d_map(prediction[:, 1], y_test - prediction[:, 0], ax, error_type="line")
     fig.tight_layout()
+    fig.savefig("../../Karlo/extra/results/residual_sigma_dependence.png")
     plt.show()
 
     fig, ax = plt.subplots()
     coverage_plot(y_test, prediction, ax)
     fig.tight_layout()
+    fig.savefig("../../Karlo/extra/results/coverage_energy_dependence.png")
     plt.show()

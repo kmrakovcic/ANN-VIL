@@ -33,6 +33,11 @@ def readCSV(fileName):
 def interpolRGI(EBLen, z, EBLn):
     return RegularGridInterpolator((EBLen, z), EBLn, method='linear', bounds_error=False, fill_value=0.0)
 
+def photDens_CMB(omega, z):
+    if(omega/ (constants.Boltzmann/constants.eV * (1+z) * 2.73)) < 500:
+        return np.square(omega/constants.pi) / (np.exp(omega/ (constants.Boltzmann/constants.eV * (1+z) * 2.73)) - 1)
+    else:
+        return np.float64(0)
 
 def hub(z):
     return np.sqrt(Om_m * np.power(1 + z, 3) + Om_L)
@@ -50,9 +55,8 @@ def F_LIV(tauB, muB):
 
 
 def integral_LIV(omega, tauB, z, muB):
-    return F_LIV(tauB, muB * np.power(1 + z, 4)) * photDens(np.array([omega, z])) / np.square(omega) / np.power(1 + z,
-                                                                                                                3) / hub(
-        z)
+    return F_LIV(tauB, muB * np.power(1 + z, 4)) * (photDens_EBL(np.array([omega, z])) + photDens_CMB(omega, z)) / np.square(omega) / np.power(1 + z,
+                                                                                                                3) / hub(z)
 
 
 def F_SR(tauB):
@@ -61,7 +65,7 @@ def F_SR(tauB):
 
 
 def integral_SR(omega, tauB, z):
-    return F_SR(tauB) * photDens(np.array([omega, z])) / np.square(omega) / np.power(1 + z, 3) / hub(z)
+    return F_SR(tauB) * (photDens_EBL(np.array([omega, z])) + photDens_CMB(omega, z)) / np.square(omega) / np.power(1 + z, 3) / hub(z)
 
 
 def opacity(E, zs, L):
@@ -86,4 +90,4 @@ EBLwavelength = dataEBL[:, 0]
 EBLen = 2 * pi * hb * c / EBLwavelength * 10 ** 6
 EBLSED = dataEBL[:, 1:38] * SEDconvert
 EBLn = EBLSED / np.square(EBLen[:, None])
-photDens = interpolRGI(EBLen, redshift, EBLn)
+photDens_EBL = interpolRGI(EBLen, redshift, EBLn)

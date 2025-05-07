@@ -7,10 +7,10 @@ import numpy as np
 def main():
     parser = argparse.ArgumentParser(description="Generate opacity grid")
     parser.add_argument('--E_min', type=float,
-                        default=10.5,
+                        default=10,
                         help='Lower bound for gamma ray energy. Write only exponent of 10 potential')
     parser.add_argument('--E_max', type=float,
-                        default=13.7,
+                        default=18,
                         help='Upper bound for gamma ray energy. Write only exponent of 10 potential')
     parser.add_argument('--Eqg_min', type=float,
                         default=9,
@@ -19,10 +19,10 @@ def main():
                         default=30,
                         help='Upper bound for LIV scale energy. Write only exponent of 10 potential')
     parser.add_argument('--E_num', type=int,
-                        default=1000,
+                        default=10,
                         help='Number of gridpoint in E direction')
     parser.add_argument('--Eqg_num', type=int,
-                        default=1000,
+                        default=10,
                         help='Number of gridpoint in Eqg direction')
     parser.add_argument('--verbose', type=argparse.BooleanOptionalAction,
                         default=True,

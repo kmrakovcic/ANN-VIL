@@ -67,7 +67,7 @@ def create_opacity_grid(E_min, E_max, Eqg_min, Eqg_max, N=(5, 5), z=0.035, paral
 
 
 def create_one_training_example(spectrum_parameters, lc_parameters, Eqg,
-                                spectrum_error=None, lc_error=None, E_min=10 ** 10.55, E_max=10 ** 13.7,
+                                spectrum_error=None, lc_error=None, E_min=10 ** 10.55, E_max=10 ** 17.5,
                                 z=0.035, photon_num=2000, interpolation_grid=None, t_observation=4 * 28 * 60,
                                 verbose=False, i=0):
     photon_count = 0
@@ -153,7 +153,7 @@ def create_one_training_example(spectrum_parameters, lc_parameters, Eqg,
 
 def create_train_set(examples_num, spectrum_parameters, lc_parameters, Eqg=[10 ** 16, 10 ** 26],
                      spectrum_error=(0., 0.24), lc_error=(6., 185., 301., 11., 220., 283.),
-                     E=[10 ** 10.55, 10 ** 13.7],
+                     E=[10 ** 10.55, 10 ** 17.5],
                      z=0.035, photon_num=2000, t_observation=4 * 28 * 60,
                      interpolation_grid_file=None, verbose=False,
                      parallel=True):
