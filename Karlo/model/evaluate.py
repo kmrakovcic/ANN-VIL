@@ -183,7 +183,7 @@ if __name__ == "__main__":
     intrinsic_lightcurve = y_test[:, 2:8]
     intrinsic_spectrum = y_test[:, :2]
     y_test = np.log10(y_test[:, -1])
-    model.load_state_dict(torch.load("../../Karlo/extra/transformer55.pt"))
+    model.load_state_dict(torch.load("../../Karlo/extra/transformer95.pt"))
     prediction = model.predict(x_test)
 
     os.makedirs("../../Karlo/extra/results", exist_ok=True)

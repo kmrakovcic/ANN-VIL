@@ -3,6 +3,7 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset, random_split
 from torch.amp import GradScaler, autocast
 import numpy as np
+import time
 
 # -------- Load and preprocess data --------
 def load_from_file (data_path):
@@ -50,7 +51,7 @@ class MultiHeadAttentionPooling(nn.Module):
 
 
 class LIVTransformer(nn.Module):
-    def __init__(self, input_dim=2, embed_dim=128, num_heads=8, num_layers=4, ff_dim=128, max_len=2000, dropout=0.1):
+    def __init__(self, input_dim=2, embed_dim=128, num_heads=8, num_layers=4, ff_dim=256, max_len=2000, dropout=0.1):
         super().__init__()
         self.embedding = nn.Linear(input_dim, embed_dim)
         self.positional_encoding = PositionalEncoding(embed_dim, max_len=max_len)
@@ -70,11 +71,11 @@ class LIVTransformer(nn.Module):
             nn.Softsign(),
             ResidualGLU(64, 32),
             nn.Softsign(),
-            nn.Linear(32, 16),
+            ResidualGLU(32, 16),
             nn.Sigmoid(),
-            nn.Linear(16, 8),
+            ResidualGLU(16, 8),
             nn.GELU(),
-            nn.Linear(8, 2),
+            nn.Linear(8, 2)
         )
 
         # Normalization parameters
@@ -87,7 +88,7 @@ class LIVTransformer(nn.Module):
     def calibrate_normalization(self, x, y):
         # Normalize x
         times = x[:, :, 0]
-        energies = x[:, :, 1] * 1e-10
+        energies = np.log10(x[:, :, 1])
         self.x_max_time = torch.tensor(times.max())
         self.x_mean_energies = torch.tensor(energies.mean())
         self.x_std_energies = torch.tensor(energies.std())
@@ -99,7 +100,7 @@ class LIVTransformer(nn.Module):
 
     def normalize_x_internal(self, x):
         times = x[:, :, 0] / self.x_max_time
-        energies = (x[:, :, 1] * 1e-10 - self.x_mean_energies) / self.x_std_energies
+        energies = (torch.log10(x[:, :, 1]) - self.x_mean_energies) / self.x_std_energies
         return torch.stack((times, energies), dim=-1)
 
     def normalize_y_internal(self, y):
@@ -146,6 +147,7 @@ class LIVTransformer(nn.Module):
         trigger_times = 0
 
         for epoch in range(epochs):
+            epoch_start_time = time.time()
             self.train()
             train_loss = 0.0
             for xb, yb in train_loader:
@@ -179,7 +181,10 @@ class LIVTransformer(nn.Module):
 
             y_pred = np.concatenate(y_pred_list, axis=0)
             y_true = np.concatenate(y_true_list, axis=0)
-            cov = coverage(y_true, y_pred)
+            y_true_unnormalized = self.unnormalize_y_internal(torch.tensor(y_true).to(device))
+            y_pred_mu_unnormalized = self.unnormalize_y_internal(torch.tensor(y_pred[:, 0]).to(device))
+            y_pred_sigma_unnormalized = torch.tensor(y_pred[:, 1]).to(device) * (self.y_max - self.y_min)
+            cov = coverage(y_true_unnormalized, y_pred_mu_unnormalized, y_pred_sigma_unnormalized)
 
             train_loss /= len(train_loader.dataset)
             val_loss /= len(val_loader.dataset)
@@ -188,7 +193,7 @@ class LIVTransformer(nn.Module):
             scheduler.step()
 
             print(
-                f"Epoch {epoch + 1:03d} - Train Loss: {train_loss:.5f}, Val Loss: {val_loss:.5f}, Val MSE: {val_mse_loss:.5f}, Coverage: {cov:.5f}, LR: {scheduler.get_last_lr()[0]:.7f}")
+                f"Epoch {epoch + 1:03d} - {time.time()-epoch_start_time:2.2f}s - Train Loss: {train_loss:.5f}, Val Loss: {val_loss:.5f}, Val MSE: {val_mse_loss:.5f}, Coverage: {cov:.5f}, LR: {scheduler.get_last_lr()[0]:.7f}")
 
             if epoch > patience:
                 if val_loss < best_loss:
@@ -230,6 +235,7 @@ class LIVTransformer(nn.Module):
         best_loss = np.inf
 
         for epoch in range(epochs):
+            epoch_start_time = time.time()
             self.train()
             train_loss = 0.0
             for xb, yb in train_loader:
@@ -263,7 +269,10 @@ class LIVTransformer(nn.Module):
 
             y_pred = np.concatenate(y_pred_list, axis=0)
             y_true = np.concatenate(y_true_list, axis=0)
-            cov = coverage(y_true, y_pred)
+            y_true_unnormalized = self.unnormalize_y_internal(torch.tensor(y_true).to(device))
+            y_pred_mu_unnormalized = self.unnormalize_y_internal(torch.tensor(y_pred[:, 0]).to(device))
+            y_pred_sigma_unnormalized = torch.tensor(y_pred[:, 1]).to(device) * (self.y_max - self.y_min)
+            cov = coverage(y_true_unnormalized, y_pred_mu_unnormalized, y_pred_sigma_unnormalized)
 
             train_loss /= len(train_loader.dataset)
             val_loss /= len(val_loader.dataset)
@@ -272,7 +281,7 @@ class LIVTransformer(nn.Module):
             scheduler.step()
 
             print(
-                f"Finetune Epoch {epoch + 1:03d} - Train Loss: {train_loss:.5f}, Val Loss: {val_loss:.5f}, Val MSE: {val_mse_loss:.5f}, Coverage: {cov:.5f}, LR: {scheduler.get_last_lr()[0]:.7f}")
+                f"Finetune Epoch {epoch + 1:03d} - {time.time()-epoch_start_time:2.2f}s - Train Loss: {train_loss:.5f}, Val Loss: {val_loss:.5f}, Val MSE: {val_mse_loss:.5f}, Coverage: {cov:.5f}, LR: {scheduler.get_last_lr()[0]:.9f}")
 
             if val_loss < best_loss:
                 best_loss = val_loss
@@ -325,11 +334,8 @@ def marginal_posterior_density_loss():
     return loss
 
 
-def coverage (y_true, y_pred):
-    y_true = torch.tensor(y_true)
-    mu = torch.tensor(y_pred[:, :1]) # first output neuron
-    sig = torch.abs(torch.tensor(y_pred[:, 1:])) # second output neuron
-    return torch.mean((torch.abs(y_true-mu)<torch.abs(sig)).to(torch.float))
+def coverage (y_true, p_mu, p_sigma):
+    return torch.mean((torch.abs(y_true-p_mu)<torch.abs(p_sigma)).to(torch.float))
 
 if __name__ == '__main__':
     x_train, y_train = np.load("../../Karlo/extra/trainset_p2000n10000_train.npz").values()
@@ -337,5 +343,5 @@ if __name__ == '__main__':
     y_train = y_train[:, -1] # only the first output neuron
     y_test = y_test[:, -1] # only the first output neuron
     model = LIVTransformer()
-    model.train_model(x_train, y_train, "../../Karlo/extra/transformer55.pt", epochs=200, lr=1e-4, patience=20)
-    model.finetune_head(x_train, y_train, "../../Karlo/extra/transformer55.pt", epochs=64, lr=1e-6)
+    model.train_model(x_train, y_train, "../../Karlo/extra/transformer95.pt", epochs=512, lr=1e-4, patience=40)
+    model.finetune_head(x_train, y_train, "../../Karlo/extra/transformer95.pt", epochs=64, lr=1e-6)
