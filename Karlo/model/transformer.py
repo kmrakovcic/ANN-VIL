@@ -99,6 +99,7 @@ class LIVTransformer(nn.Module):
         self.y_max = torch.tensor(y.max())
 
     def normalize_x_internal(self, x):
+        x = x.to(self.x_mean_energies.device)
         times = x[:, :, 0] / self.x_max_time
         energies = (torch.log10(x[:, :, 1]) - self.x_mean_energies) / self.x_std_energies
         return torch.stack((times, energies), dim=-1)

@@ -76,7 +76,7 @@ def plot_expected_gauss(p, sigma_p, y_test, outputs, ax, mask=None, nbins=300, t
         sigma_p = [sigma_p[i][mask] for i in range(len(sigma_p))]
         y_test = [y_test[i][mask] for i in range(len(y_test))]
     ax.set_xlabel(
-            r"$\frac{" + outputs + "_{NN} - " + outputs + "_{" + true_name + "}}{ \sigma_{" + outputs + "} }$")
+            r"$\frac{" + outputs + "_{NN} - " + outputs + "_{" + true_name + "}}{ \sigma_{NN} }$")
     ax.set_yticks([])
     points_norm = (p[sigma_p != 0] - y_test[sigma_p != 0]) / sigma_p[sigma_p != 0]
     points_norm = points_norm[(points_norm > -5 * sigzi(points_norm)) &
@@ -90,7 +90,7 @@ def plot_expected_gauss(p, sigma_p, y_test, outputs, ax, mask=None, nbins=300, t
     ax.legend(loc="upper right")
     return ax
 
-def residual_histogram (y, p, ax, nbins=100, x_label=r"$E^{qg}_{NN} - E^{qg}_{true}$"):
+def residual_histogram (y, p, ax, nbins=100, x_label=r"$\log_{10}(E_{qg})_{true} - \log_{10}(E_{qg})_{NN}$"):
     residual = y - p
     residual = residual[(residual > -5 * sigzi(residual)) & (residual < 5 * sigzi(residual))]
     hist, bins = np.histogram(residual, bins=nbins)
@@ -171,13 +171,82 @@ def coverage_plot(y, p, ax, bins=20):
     coverage = hist_c / hist
     ax.hlines(0.6826894, bins[0], bins[-1], colors='black', linestyles='dashed', label="$1 \sigma$")
     ax.plot(bins[1:]-np.diff(bins), coverage, label="NN")
-    ax.set_xlabel(r"$E^{qg}_{true}$")
+    ax.set_xlabel(r"$\log_{10}(E_{qg})_{true}$")
     ax.set_ylabel(r"coverage")
     ax.legend()
 
+
+def get_dataset_attention_weights(model, X, device=None):
+    """
+    Compute average attention weights for each sequence in X.
+
+    Args:
+      model  : trained LIVTransformer
+      X      : np.ndarray of shape (N, seq_len, 2)
+      device : torch device (e.g. "cuda" or "cpu"). If None, inferred from model.
+
+    Returns:
+      weights_np : np.ndarray of shape (N, seq_len)
+    """
+    model.eval()
+    if device is None:
+        device = next(model.parameters()).device
+
+    x = torch.tensor(X, dtype=torch.float32, device=device)     # [N, seq_len, 2]
+    with torch.no_grad():
+        x_norm = model.normalize_x_internal(x)                   # [N, seq_len, 2]
+        emb    = model.embedding(x_norm) + model.positional_encoding(x_norm)  # [N, seq_len, D]
+
+        N = emb.shape[0]
+        query = model.attn_pool.query.expand(N, -1, -1)          # [N, 1, D]
+
+        # need_weights=True but by default average_attn_weights=True
+        _, attn = model.attn_pool.mha(
+            query,    # [N, 1, D]
+            emb,      # [N, seq_len, D]
+            emb,      # [N, seq_len, D]
+            need_weights=True
+        )
+        # attn.shape is either (N, seq_len) if heads averaged and tgt_len=1 collapsed,
+        # or (N, 1, seq_len). Let's handle both:
+        if attn.dim() == 3:
+            # shape (N, tgt_len=1, seq_len)
+            weights = attn[:, 0, :]            # → (N, seq_len)
+        elif attn.dim() == 4:
+            # shape (N, num_heads, tgt_len=1, seq_len)
+            weights = attn[:, :, 0, :].mean(1) # → (N, seq_len)
+        else:
+            raise RuntimeError(f"Unexpected attn shape {attn.shape}")
+    return weights.cpu().numpy()
+
+def plot_attention_weights(x, weights, ax, xname="", yname=""):
+    hb = ax.hexbin(
+        x[:, :, 0].flatten(),
+        np.log10(x[:, :, 1]).flatten(),
+        C=weights.flatten(),
+        gridsize=20,
+        reduce_C_function=np.median
+    )
+    ax.set_xlabel(xname)
+    ax.set_ylabel(yname)
+    ax.set_facecolor("white")
+    cbar = plt.colorbar(hb, ax=ax, pad=0.02)
+    cbar.ax.set_ylabel("Attention", rotation=270, labelpad=-15)
+    cbar.set_ticks([cbar.get_ticks()[1], cbar.get_ticks()[-2]])
+    cbar.set_ticklabels(['low', 'high'])
+    return ax
+
 if __name__ == "__main__":
+    matplotlib.rcParams.update({
+        'font.size': 18,  # General font size
+        'axes.labelsize': 19,  # X and Y axis label size
+        'xtick.labelsize': 19,  # X axis tick size
+        'ytick.labelsize': 19,  # Y axis tick size
+        'legend.fontsize': 19,  # Legend font size
+        'figure.titlesize': 20  # Figure title size
+    })
     # Example usage
-    x_test, y_test = np.load("../../Karlo/extra/trainset_p2000n2500_test.npz").values()
+    x_test, y_test = np.load("../../Karlo/extra/trainset_noCMB_p2000n2500_test.npz").values()
 
     model = transformer.LIVTransformer()
     intrinsic_lightcurve = y_test[:, 2:8]
@@ -185,16 +254,17 @@ if __name__ == "__main__":
     y_test = np.log10(y_test[:, -1])
     model.load_state_dict(torch.load("../../Karlo/extra/transformer95.pt"))
     prediction = model.predict(x_test)
+    weights = get_dataset_attention_weights(model, x_test)
 
     os.makedirs("../../Karlo/extra/results", exist_ok=True)
     fig, ax = plt.subplots()
-    plot_correlation(y_test, prediction[:, 0], ax, name="$E^{qg}$")
+    plot_correlation(y_test, prediction[:, 0], ax, name="$\log_{10}(E_{qg})$")
     fig.tight_layout()
     fig.savefig("../../Karlo/extra/results/correlation.png")
     plt.show()
 
     fig, ax = plt.subplots()
-    ax = plot_expected_gauss(prediction[:, 0], prediction[:, 1], y_test, "E^{qg}", ax,
+    ax = plot_expected_gauss(prediction[:, 0], prediction[:, 1], y_test, "\log_{10}(E_{qg})", ax,
                              mask=None, nbins=100, true_name="true")
     fig.tight_layout()
     fig.savefig("../../Karlo/extra/results/chi2_hist.png")
@@ -207,24 +277,26 @@ if __name__ == "__main__":
     plt.show()
 
     fig, ax = plt.subplots()
-    ax = plot_2d_map(y_test, y_test - prediction[:, 0], ax, xname="$E^{qg}_{true}$",
-                     yname="$E^{qg}_{true} - E^{qg}_{NN}$")
+    ax = plot_2d_map(y_test, y_test - prediction[:, 0], ax, xname="$\log_{10}(E_{qg})_{true}$",
+                     yname="$\log_{10}(E_{qg})_{true} - \log_{10}(E_{qg})_{NN}$")
     ax = plot_medians_on_2d_map(y_test, y_test - prediction[:, 0], ax, error_type="line")
     fig.tight_layout()
     fig.savefig("../../Karlo/extra/results/residual_energy_dependence.png")
     plt.show()
 
     fig, ax = plt.subplots()
-    ax = plot_2d_map(y_test, prediction[:, 1], ax, xname="$E^{qg}_{true}$", yname="$predicted \quad \sigma_{E^{qg}}$")
+    ax = plot_2d_map(y_test, prediction[:, 1], ax, xname="$\log_{10}(E_{qg})_{true}$", yname="$\sigma_{NN}$")
     ax = plot_medians_on_2d_map(y_test, prediction[:, 1], ax, error_type="line", zero_line=False)
     fig.tight_layout()
     fig.savefig("../../Karlo/extra/results/sigma_energy_dependence.png")
     plt.show()
 
     fig, ax = plt.subplots()
-    ax = plot_2d_map(prediction[:, 1], y_test - prediction[:, 0], ax, xname="$predicted \quad \sigma_{E^{qg}}$",
-                     yname="$E^{qg}_{true} - E^{qg}_{NN}$")
+    ax = plot_2d_map(prediction[:, 1], y_test - prediction[:, 0], ax, xname="$\sigma_{NN}$",
+                     yname="$\log_{10}(E_{qg})_{true} - \log_{10}(E_{qg})_{NN}$")
     ax = plot_medians_on_2d_map(prediction[:, 1], y_test - prediction[:, 0], ax, error_type="line")
+    x_lim = ax.get_xlim()
+    ax.set_xlim([x_lim[0], 2])
     fig.tight_layout()
     fig.savefig("../../Karlo/extra/results/residual_sigma_dependence.png")
     plt.show()
@@ -233,4 +305,10 @@ if __name__ == "__main__":
     coverage_plot(y_test, prediction, ax)
     fig.tight_layout()
     fig.savefig("../../Karlo/extra/results/coverage_energy_dependence.png")
+    plt.show()
+
+    fig, ax = plt.subplots()
+    plot_attention_weights(x_test, weights, ax, xname="Time/s", yname="$\log_{10}(E_{\gamma}/eV)$")
+    fig.tight_layout()
+    fig.savefig("../../Karlo/extra/results/attention_visualisation.png")
     plt.show()
